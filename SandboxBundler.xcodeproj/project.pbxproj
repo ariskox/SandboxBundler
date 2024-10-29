@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		728DD2292CD1266D00002E67 /* SwiftBlade in Frameworks */ = {isa = PBXBuildFile; productRef = 728DD2282CD1266D00002E67 /* SwiftBlade */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		728DD1F52CD1175600002E67 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				728DD2292CD1266D00002E67 /* SwiftBlade in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 				728DD1E52CD1175500002E67 /* SandboxBundler */,
 				728DD1F72CD1175600002E67 /* SandboxBundlerTests */,
 				728DD2012CD1175600002E67 /* SandboxBundlerUITests */,
+				728DD2272CD1266D00002E67 /* Frameworks */,
 				728DD1E42CD1175500002E67 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +96,13 @@
 				728DD1FE2CD1175600002E67 /* SandboxBundlerUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		728DD2272CD1266D00002E67 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +125,7 @@
 			);
 			name = SandboxBundler;
 			packageProductDependencies = (
+				728DD2282CD1266D00002E67 /* SwiftBlade */,
 			);
 			productName = SandboxBundler;
 			productReference = 728DD1E32CD1175500002E67 /* SandboxBundler.app */;
@@ -195,6 +209,9 @@
 			);
 			mainGroup = 728DD1DA2CD1175500002E67;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				728DD2142CD1263200002E67 /* XCLocalSwiftPackageReference "../../SwiftBlade" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 728DD1E42CD1175500002E67 /* Products */;
 			projectDirPath = "";
@@ -322,7 +339,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.7;
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -379,7 +396,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.7;
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -408,7 +425,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = koxaras.com.SandboxBundler;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -433,7 +450,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = koxaras.com.SandboxBundler;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
@@ -541,6 +558,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		728DD2142CD1263200002E67 /* XCLocalSwiftPackageReference "../../SwiftBlade" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../SwiftBlade;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		728DD2282CD1266D00002E67 /* SwiftBlade */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 728DD2142CD1263200002E67 /* XCLocalSwiftPackageReference "../../SwiftBlade" */;
+			productName = SwiftBlade;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 728DD1DB2CD1175500002E67 /* Project object */;
 }
