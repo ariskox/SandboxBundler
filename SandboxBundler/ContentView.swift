@@ -15,6 +15,23 @@ struct ContentView: View {
     @State private var exportError: BundlerError?
     @State private var bundleID: String = ""
 
+
+    private var outputFileName: String? {
+        switch fileType {
+        case .separate:
+            return arm64Binary?.url?.lastPathComponent
+        case .universal:
+            return universalBinary?.url?.lastPathComponent
+        }
+    }
+
+    private var fullBundleID: String? {
+        guard let outputFileName = outputFileName, bundleID.count > 0 else {
+            return nil
+        }
+        return bundleID + "." + outputFileName
+    }
+
     enum FileType: String, CaseIterable, Identifiable {
         case universal = "Universal Binary"
         case separate = "Separate architectures"
@@ -52,15 +69,19 @@ struct ContentView: View {
                 Text(
 """
 Add only your app's bundle id. Do not include the Team ID, 
-the App ID Prefix, or the bundled executable name
+the App ID Prefix, or the bundled executable name.
 """)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .padding(.top, 5)
+                Text(fullBundleID != nil ? "Output signed with BundleID: \(fullBundleID!)": "")
                     .font(.caption)
                     .foregroundColor(.gray)
                     .padding(.top, 5)
             }
             .padding(.vertical)
 
-            Button("Export signed binary") {
+            Button(buttonTitle) {
                 exportBinary()
             }
             .padding(.vertical)
@@ -76,7 +97,16 @@ the App ID Prefix, or the bundled executable name
         }
     }
 
-    func exportBinary() {
+    private var buttonTitle: String {
+        switch fileType {
+        case .universal:
+            return "Export signed universal binary"
+        case .separate:
+            return "Combine and export universal binary"
+        }
+    }
+
+    private func exportBinary() {
         Task {
             do {
                 let _ = try filesAreValid()
@@ -88,26 +118,23 @@ the App ID Prefix, or the bundled executable name
                 let bundler = Bundler()
 
                 let inputURL: URL
-                let outputFileName: String
-                
+
                 switch fileType {
                 case .universal:
                     inputURL = universalBinary!.url!
-                    outputFileName = inputURL.lastPathComponent
                 case .separate:
                     guard let fileX86 = x86_64Binary?.url, let fileARM = arm64Binary?.url else {
                         throw BundlerError(message: "Missing binaries")
                     }
 
                     inputURL = try await bundler.combineBinaries(x86_64URL: fileX86, arm64URL: fileARM)
-                    outputFileName = arm64Binary!.url!.lastPathComponent
                 }
 
-                let outputURL = outputDir.appendingPathComponent(outputFileName)
+                let outputURL = outputDir.appendingPathComponent(outputFileName!)
 
                 try FileManager.default.copyItem(at: inputURL, to: outputURL)
 
-                try await bundler.codesign(file: outputURL, bundleID: bundleID)
+                try await bundler.codesign(file: outputURL, bundleID: fullBundleID!)
 
                 self.exportError = BundlerError(title: "Success", message: "The file was signed successfully")
 
@@ -120,14 +147,14 @@ the App ID Prefix, or the bundled executable name
 
     }
 
-    func bundleIDisValid() throws(BundlerError) -> Bool {
+    private func bundleIDisValid() throws(BundlerError) -> Bool {
         guard bundleID.count > 0 else {
             throw BundlerError(message: "Bundle ID is missing")
         }
         return true
     }
 
-    func filesAreValid() throws(BundlerError) -> Bool {
+    private func filesAreValid() throws(BundlerError) -> Bool {
         switch fileType {
         case .universal:
             guard let universalBinary else {
