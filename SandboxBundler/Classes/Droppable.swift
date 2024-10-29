@@ -33,6 +33,9 @@ struct Droppable: View {
                     isDropping: $isDropping
                 )
             )
+            .onTapGesture {
+                selectInputFolder()
+            }
     }
 
     var overlayTextColor: Color {
@@ -73,4 +76,22 @@ struct Droppable: View {
             return true
         }
     }
+
+    private func selectInputFolder() {
+        let openPanel = NSOpenPanel()
+        openPanel.title = "Select a binary file"
+        openPanel.canChooseFiles = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowsMultipleSelection = false
+
+        if openPanel.runModal() == .OK, let selectedURL = openPanel.url {
+            self.isDropping = true
+            Task { @MainActor in
+                defer { self.isDropping = false }
+                let delegate = FileDropDelegate(binaryFile: $binaryFile, isDropping: $isDropping)
+                try await delegate.handle(url: selectedURL)
+            }
+        }
+    }
+
 }

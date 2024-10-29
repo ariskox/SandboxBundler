@@ -19,14 +19,7 @@ struct FileDropDelegate: DropDelegate {
             Task { @MainActor in
                 self.isDropping = false
                 guard let url = url else { return }
-                guard FileManager.default.isReadableFile(atPath: url.path()) else { return }
-                do {
-                    let archs = try await FileManager.default.getArchitectures(fileURL: url)
-                    self.binaryFile = BinaryFile(url: url, architecture: archs)
-                } catch {
-                    debugPrint("got error \(error)")
-                    self.binaryFile = BinaryFile(url: url, architecture: .invalid(error.localizedDescription))
-                }
+                try await self.handle(url: url)
             }
         }
         return true
@@ -38,5 +31,16 @@ struct FileDropDelegate: DropDelegate {
 
     func dropExited(info: DropInfo) {
         isDropping = false
+    }
+
+    func handle(url: URL) async throws {
+        guard FileManager.default.isReadableFile(atPath: url.path()) else { return }
+        do {
+            let archs = try await FileManager.default.getArchitectures(fileURL: url)
+            self.binaryFile = BinaryFile(url: url, architecture: archs)
+        } catch {
+            debugPrint("got error \(error)")
+            self.binaryFile = BinaryFile(url: url, architecture: .invalid(error.localizedDescription))
+        }
     }
 }
