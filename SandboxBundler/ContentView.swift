@@ -8,6 +8,12 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var fileType = FileType.universal
+    @State private var universalBinary: BinaryFile?
+    @State private var arm64Binary: BinaryFile?
+    @State private var x86_64Binary: BinaryFile?
+    @State private var exportError: ExportError?
+    @State private var bundleID: String = ""
 
     enum FileType: String, CaseIterable, Identifiable {
         case universal = "Universal Binary"
@@ -15,13 +21,6 @@ struct ContentView: View {
 
         var id: String { self.rawValue }
     }
-
-    @State private var fileType = FileType.universal
-    @State private var universalBinary: BinaryFile?
-    @State private var arm64Binary: BinaryFile?
-    @State private var x86_64Binary: BinaryFile?
-    @State private var exportError: ExportError?
-    @State private var bundleID: String = ""
 
     var body: some View {
         VStack {
@@ -70,7 +69,7 @@ the App ID Prefix, or the bundled executable name
         .padding()
         .alert(item: $exportError) { error in
             Alert(
-                title: Text("Error"),
+                title: Text(error.title),
                 message: Text(error.message),
                 dismissButton: .cancel()
             )
@@ -78,17 +77,41 @@ the App ID Prefix, or the bundled executable name
     }
 
     func exportBinary() {
-        do {
-            let _ = try filesAreValid()
-        } catch {
-            self.exportError = error
+        Task {
+            do {
+                let _ = try filesAreValid()
+                let _ = try bundleIDisValid()
+                guard let outputDir = selectOutputFolder() else {
+                    return
+                }
+
+                let inputURL: URL
+                let outputFileName: String
+
+                switch fileType {
+                case .universal:
+                    inputURL = universalBinary!.url!
+                    outputFileName = inputURL.lastPathComponent
+                case .separate:
+                    inputURL = try await combineBinaries()
+                    outputFileName = arm64Binary!.url!.lastPathComponent
+                }
+
+                let outputURL = outputDir.appendingPathComponent(outputFileName)
+
+                try FileManager.default.copyItem(at: inputURL, to: outputURL)
+
+                try await codesign(file: outputURL)
+
+                self.exportError = ExportError(title: "Success", message: "The file was signed successfully")
+
+            } catch let exportError as ExportError {
+                self.exportError = exportError
+            } catch {
+                self.exportError = ExportError(message: error.localizedDescription)
+            }
         }
-    }
 
-    struct ExportError: Error, Identifiable {
-        var message: String
-
-        var id: String { return message }
     }
 
     func bundleIDisValid() throws(ExportError) -> Bool {
@@ -124,173 +147,90 @@ the App ID Prefix, or the bundled executable name
             return true
         }
     }
-}
 
-
-struct Droppable: View {
-    @State var architecture: Architecture
-    @Binding var binaryFile: BinaryFile?
-    @State private var isDropping = false
-
-    var body: some View {
-        if binaryFile != nil {
-            Rectangle()
-                .fill(isInvalid ? Color.red.opacity(0.5) : Color.green.opacity(0.5))
-                .cornerRadius(20) // Rounded corners
-                .frame(width: 250, height: 80)
-                .overlay {
-                    Text(archTitle)
-                        .foregroundColor(.white)
-                        .font(.body)
-                        .multilineTextAlignment(.center)
-                }
-                .padding()
-                .onDrop(
-                    of: [.fileURL],
-                    delegate: FileDropDelegate(
-                        binaryFile: $binaryFile,
-                        isDropping: $isDropping
-                    )
-                )
-
-        } else {
-            Rectangle()
-                .fill(Color.gray.opacity(0.5))
-                .cornerRadius(20) // Rounded corners
-                .border(isDropping ? Color.blue : Color.clear, width: 4)
-                .frame(width: 250, height: 80)
-                .overlay {
-                    Text(architecture.dragAndDropTitle)
-                        .foregroundColor(.black)
-                        .font(.headline)
-                        .multilineTextAlignment(.center)
-                }
-                .padding()
-                .onDrop(
-                    of: [.fileURL],
-                    delegate: FileDropDelegate(
-                        binaryFile: $binaryFile,
-                        isDropping: $isDropping
-                    )
-                )
+    // Returns a temporary url
+    func combineBinaries() async throws(ExportError) -> URL {
+        guard let fileX86 = x86_64Binary?.url, let fileARM = arm64Binary?.url else {
+            throw ExportError(message: "Missing binaries")
         }
-    }
 
-    var archTitle: String {
-        guard let binaryFile else { return "" }
-        if isInvalid {
-            return "Expecting: \(architecture.title).\n Got: \(binaryFile.architecture.title)"
-        } else {
-            return "\(binaryFile.architecture.title).\n\(binaryFile.url?.lastPathComponent ?? "")"
+        let lipoURL = URL(fileURLWithPath: "/usr/bin/lipo")
+
+        let tempDirectory = FileManager.default.temporaryDirectory
+        let outputURL = tempDirectory.appendingPathComponent(UUID().uuidString)
+
+        do {
+            let result = try await Process.runAsync(
+                url: lipoURL,
+                arguments: [
+                    "-create",
+                    "-output",
+                    outputURL.path(),
+                    fileX86.path(),
+                    fileARM.path()
+                ]
+            )
+            debugPrint("got result \(result.standard) \(result.error)")
+            return outputURL
+        } catch {
+            throw ExportError(message: "Failed to combine binaries: \(error.localizedDescription)")
         }
+
     }
 
-    var isInvalid: Bool {
-        guard let binaryFile = binaryFile else { return false }
-        switch (binaryFile.architecture, architecture) {
-        case (.arm64, .arm64), (.intel64, .intel64), (.universal, .universal):
-                return false
-        default:
-            return true
+    private func selectOutputFolder() -> URL? {
+        let dialog = NSOpenPanel()
+        dialog.title = "Choose a destination folder"
+        dialog.canChooseFiles = false
+        dialog.canChooseDirectories = true
+        dialog.allowsMultipleSelection = false
+        dialog.prompt = "Select Folder"
+
+        guard dialog.runModal() == .OK, let result = dialog.url else {
+            return nil
         }
+        return result
     }
-}
 
-struct BinaryFile {
-    var url: URL?
-    var architecture: Architecture
-}
+    private func codesign(file: URL) async throws(ExportError) {
+        let codesignURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        let bundledEntitlements = Bundle.main.url(forResource: "exported_entitlements", withExtension: "plist")!
 
-import SwiftBlade
-
-struct FileDropDelegate: DropDelegate {
-    @Binding var binaryFile: BinaryFile?
-    @Binding var isDropping: Bool
-
-    func performDrop(info: DropInfo) -> Bool {
-        // Extract file URLs from the drag-and-drop info
-        let itemProvider = info.itemProviders(for: [.fileURL]).first
-        let _ = itemProvider?.loadObject(ofClass: URL.self) { url, error in
-            Task { @MainActor in
-                self.isDropping = false
-                guard let url = url else { return }
-                guard FileManager.default.isReadableFile(atPath: url.path()) else { return }
-                do {
-                    let archs = try await FileManager.default.getArchitectures(fileURL: url)
-                    self.binaryFile = BinaryFile(url: url, architecture: archs)
-                } catch {
-                    debugPrint("got error \(error)")
-                    self.binaryFile = BinaryFile(url: url, architecture: .invalid(error.localizedDescription))
-                }
-            }
+        do {
+            let result = try await Process.runAsync(
+                url: codesignURL,
+                arguments: [
+                    "-s",
+                    "-",
+                    "-i",
+                    bundleID,
+                    "-o",
+                    "runtime",
+                    "--entitlements",
+                    bundledEntitlements.path(),
+                    "-f",
+                    file.path()
+                ]
+            )
+            debugPrint("got result \(result.standard) \(result.error)")
+        } catch {
+            throw ExportError(message: "Failed to codesign \(error.localizedDescription)")
         }
-        return true
-    }
 
-    func dropEntered(info: DropInfo) {
-        isDropping = true
-    }
-
-    func dropExited(info: DropInfo) {
-        isDropping = false
     }
 }
 
-extension FileManager {
-    func getArchitectures(fileURL: URL) async throws -> Architecture {
-        let lipoURL = URL(fileURLWithPath: "/usr/bin/file")
-        let result = try await Process.runAsync(url: lipoURL, arguments: ["-b", fileURL.path ])
+struct ExportError: Error, Identifiable, LocalizedError {
+    var title: String = "Error"
+    var message: String
 
-        if result.standard.contains("Mach-O universal binary with 2 architectures: [x86_64:Mach-O 64-bit executable x86_64] [arm64]") {
-            return .universal
-        } else if result.standard.contains("Mach-O 64-bit executable x86_64") {
-            return .intel64
-        } else if result.standard.contains("Mach-O 64-bit executable arm64") {
-            return .arm64
-        }
-        return .invalid(result.standard)
-    }
+    var id: String { return message }
 
-}
-
-enum Architecture {
-    case arm64
-    case intel64
-    case universal
-    case invalid(String)
-
-    var dragAndDropTitle: String {
-        switch self {
-        case .arm64:
-            return "Drag and drop an ARM64 binary here"
-        case .intel64:
-            return "Drag and drop x86_64 binary here"
-        case .universal:
-            return "Drag and drop a binary here"
-        case .invalid(let archs):
-            return "Invalid architecture: \(archs)"
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .universal:
-            return "Universal binary"
-        case .arm64:
-            return "Arm64 binary"
-        case .intel64:
-            return "x86_64 binary"
-        case .invalid(let arch):
-            return "Invalid architecture: \(arch)"
-        }
-    }
-    var isInvalid: Bool {
-        if case .invalid = self {
-            return true
-        }
-        return false
+    var errorDescription: String? {
+        return message
     }
 }
+
 
 #Preview {
     ContentView()
