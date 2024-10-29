@@ -12,7 +12,7 @@ struct ContentView: View {
     @State private var universalBinary: BinaryFile?
     @State private var arm64Binary: BinaryFile?
     @State private var x86_64Binary: BinaryFile?
-    @State private var exportError: ExportError?
+    @State private var exportError: BundlerError?
     @State private var bundleID: String = ""
 
     enum FileType: String, CaseIterable, Identifiable {
@@ -85,15 +85,21 @@ the App ID Prefix, or the bundled executable name
                     return
                 }
 
+                let bundler = Bundler()
+
                 let inputURL: URL
                 let outputFileName: String
-
+                
                 switch fileType {
                 case .universal:
                     inputURL = universalBinary!.url!
                     outputFileName = inputURL.lastPathComponent
                 case .separate:
-                    inputURL = try await combineBinaries()
+                    guard let fileX86 = x86_64Binary?.url, let fileARM = arm64Binary?.url else {
+                        throw BundlerError(message: "Missing binaries")
+                    }
+
+                    inputURL = try await bundler.combineBinaries(x86_64URL: fileX86, arm64URL: fileARM)
                     outputFileName = arm64Binary!.url!.lastPathComponent
                 }
 
@@ -101,81 +107,51 @@ the App ID Prefix, or the bundled executable name
 
                 try FileManager.default.copyItem(at: inputURL, to: outputURL)
 
-                try await codesign(file: outputURL)
+                try await bundler.codesign(file: outputURL, bundleID: bundleID)
 
-                self.exportError = ExportError(title: "Success", message: "The file was signed successfully")
+                self.exportError = BundlerError(title: "Success", message: "The file was signed successfully")
 
-            } catch let exportError as ExportError {
+            } catch let exportError as BundlerError {
                 self.exportError = exportError
             } catch {
-                self.exportError = ExportError(message: error.localizedDescription)
+                self.exportError = BundlerError(message: error.localizedDescription)
             }
         }
 
     }
 
-    func bundleIDisValid() throws(ExportError) -> Bool {
+    func bundleIDisValid() throws(BundlerError) -> Bool {
         guard bundleID.count > 0 else {
-            throw ExportError(message: "Bundle ID is missing")
+            throw BundlerError(message: "Bundle ID is missing")
         }
         return true
     }
 
-    func filesAreValid() throws(ExportError) -> Bool {
+    func filesAreValid() throws(BundlerError) -> Bool {
         switch fileType {
         case .universal:
             guard let universalBinary else {
-                throw ExportError(message: "Universal binary is missing")
+                throw BundlerError(message: "Universal binary is missing")
             }
             guard case .universal = universalBinary.architecture else {
-                throw ExportError(message: "Select a file which is a universal binary")
+                throw BundlerError(message: "Select a file which is a universal binary")
             }
             return true
         case .separate:
             guard let arm64Binary = arm64Binary else {
-                throw ExportError(message: "ARM64 binary is missing")
+                throw BundlerError(message: "ARM64 binary is missing")
             }
             guard case .arm64 = arm64Binary.architecture else {
-                throw ExportError(message: "Select a file which is an ARM64 binary")
+                throw BundlerError(message: "Select a file which is an ARM64 binary")
             }
             guard let x86_64Binary = x86_64Binary else {
-                throw ExportError(message: "x86_64 binary is missing")
+                throw BundlerError(message: "x86_64 binary is missing")
             }
             guard case .intel64 = x86_64Binary.architecture else {
-                throw ExportError(message: "Select a file which is an x86_64 binary")
+                throw BundlerError(message: "Select a file which is an x86_64 binary")
             }
             return true
         }
-    }
-
-    // Returns a temporary url
-    func combineBinaries() async throws(ExportError) -> URL {
-        guard let fileX86 = x86_64Binary?.url, let fileARM = arm64Binary?.url else {
-            throw ExportError(message: "Missing binaries")
-        }
-
-        let lipoURL = URL(fileURLWithPath: "/usr/bin/lipo")
-
-        let tempDirectory = FileManager.default.temporaryDirectory
-        let outputURL = tempDirectory.appendingPathComponent(UUID().uuidString)
-
-        do {
-            let result = try await Process.runAsync(
-                url: lipoURL,
-                arguments: [
-                    "-create",
-                    "-output",
-                    outputURL.path(),
-                    fileX86.path(),
-                    fileARM.path()
-                ]
-            )
-            debugPrint("got result \(result.standard) \(result.error)")
-            return outputURL
-        } catch {
-            throw ExportError(message: "Failed to combine binaries: \(error.localizedDescription)")
-        }
-
     }
 
     private func selectOutputFolder() -> URL? {
@@ -192,45 +168,7 @@ the App ID Prefix, or the bundled executable name
         return result
     }
 
-    private func codesign(file: URL) async throws(ExportError) {
-        let codesignURL = URL(fileURLWithPath: "/usr/bin/codesign")
-        let bundledEntitlements = Bundle.main.url(forResource: "exported_entitlements", withExtension: "plist")!
-
-        do {
-            let result = try await Process.runAsync(
-                url: codesignURL,
-                arguments: [
-                    "-s",
-                    "-",
-                    "-i",
-                    bundleID,
-                    "-o",
-                    "runtime",
-                    "--entitlements",
-                    bundledEntitlements.path(),
-                    "-f",
-                    file.path()
-                ]
-            )
-            debugPrint("got result \(result.standard) \(result.error)")
-        } catch {
-            throw ExportError(message: "Failed to codesign \(error.localizedDescription)")
-        }
-
-    }
 }
-
-struct ExportError: Error, Identifiable, LocalizedError {
-    var title: String = "Error"
-    var message: String
-
-    var id: String { return message }
-
-    var errorDescription: String? {
-        return message
-    }
-}
-
 
 #Preview {
     ContentView()
