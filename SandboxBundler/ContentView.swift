@@ -10,7 +10,7 @@ import SwiftUI
 struct ContentView: View {
 
     enum FileType: String, CaseIterable, Identifiable {
-        case universal = "Universal"
+        case universal = "Universal Binary"
         case separate = "Separate architectures"
 
         var id: String { self.rawValue }
@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var universalBinary: BinaryFile?
     @State private var arm64Binary: BinaryFile?
     @State private var x86_64Binary: BinaryFile?
+    @State private var exportError: ExportError?
+    @State private var bundleID: String = ""
 
     var body: some View {
         VStack {
@@ -44,7 +46,7 @@ struct ContentView: View {
 
             VStack {
                 Text("Application's bundle id")
-                TextField("com.example.app", text: .constant(""))
+                TextField("com.example.app", text: $bundleID)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .frame(width: 250)
 
@@ -60,12 +62,67 @@ the App ID Prefix, or the bundled executable name
             .padding(.vertical)
 
             Button("Export signed binary") {
-
+                exportBinary()
             }
             .padding(.vertical)
 
         }
         .padding()
+        .alert(item: $exportError) { error in
+            Alert(
+                title: Text("Error"),
+                message: Text(error.message),
+                dismissButton: .cancel()
+            )
+        }
+    }
+
+    func exportBinary() {
+        do {
+            let _ = try filesAreValid()
+        } catch {
+            self.exportError = error
+        }
+    }
+
+    struct ExportError: Error, Identifiable {
+        var message: String
+
+        var id: String { return message }
+    }
+
+    func bundleIDisValid() throws(ExportError) -> Bool {
+        guard bundleID.count > 0 else {
+            throw ExportError(message: "Bundle ID is missing")
+        }
+        return true
+    }
+
+    func filesAreValid() throws(ExportError) -> Bool {
+        switch fileType {
+        case .universal:
+            guard let universalBinary else {
+                throw ExportError(message: "Universal binary is missing")
+            }
+            guard case .universal = universalBinary.architecture else {
+                throw ExportError(message: "Select a file which is a universal binary")
+            }
+            return true
+        case .separate:
+            guard let arm64Binary = arm64Binary else {
+                throw ExportError(message: "ARM64 binary is missing")
+            }
+            guard case .arm64 = arm64Binary.architecture else {
+                throw ExportError(message: "Select a file which is an ARM64 binary")
+            }
+            guard let x86_64Binary = x86_64Binary else {
+                throw ExportError(message: "x86_64 binary is missing")
+            }
+            guard case .intel64 = x86_64Binary.architecture else {
+                throw ExportError(message: "Select a file which is an x86_64 binary")
+            }
+            return true
+        }
     }
 }
 
@@ -88,6 +145,13 @@ struct Droppable: View {
                         .multilineTextAlignment(.center)
                 }
                 .padding()
+                .onDrop(
+                    of: [.fileURL],
+                    delegate: FileDropDelegate(
+                        binaryFile: $binaryFile,
+                        isDropping: $isDropping
+                    )
+                )
 
         } else {
             Rectangle()

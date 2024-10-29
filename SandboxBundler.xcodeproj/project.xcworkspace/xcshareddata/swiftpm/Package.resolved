@@ -1,0 +1,15 @@
+{
+  "originHash" : "ec96558b625ed8b7b0c430a489cf8046fdcf937b8f962577545b2e07e8340c20",
+  "pins" : [
+    {
+      "identity" : "swiftblade",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ariskox/SwiftBlade.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "cde749912ef1627949cabe1a75ddd2b3febae480"
+      }
+    }
+  ],
+  "version" : 3
+}

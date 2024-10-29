@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		728DD2292CD1266D00002E67 /* SwiftBlade in Frameworks */ = {isa = PBXBuildFile; productRef = 728DD2282CD1266D00002E67 /* SwiftBlade */; };
+		728DD22C2CD12E0800002E67 /* SwiftBlade in Frameworks */ = {isa = PBXBuildFile; productRef = 728DD22B2CD12E0800002E67 /* SwiftBlade */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,7 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				728DD2292CD1266D00002E67 /* SwiftBlade in Frameworks */,
+				728DD22C2CD12E0800002E67 /* SwiftBlade in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,7 +125,7 @@
 			);
 			name = SandboxBundler;
 			packageProductDependencies = (
-				728DD2282CD1266D00002E67 /* SwiftBlade */,
+				728DD22B2CD12E0800002E67 /* SwiftBlade */,
 			);
 			productName = SandboxBundler;
 			productReference = 728DD1E32CD1175500002E67 /* SandboxBundler.app */;
@@ -210,7 +210,7 @@
 			mainGroup = 728DD1DA2CD1175500002E67;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				728DD2142CD1263200002E67 /* XCLocalSwiftPackageReference "../../SwiftBlade" */,
+				728DD22A2CD12E0800002E67 /* XCRemoteSwiftPackageReference "SwiftBlade" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 728DD1E42CD1175500002E67 /* Products */;
@@ -559,17 +559,21 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		728DD2142CD1263200002E67 /* XCLocalSwiftPackageReference "../../SwiftBlade" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../SwiftBlade;
+/* Begin XCRemoteSwiftPackageReference section */
+		728DD22A2CD12E0800002E67 /* XCRemoteSwiftPackageReference "SwiftBlade" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ariskox/SwiftBlade.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		728DD2282CD1266D00002E67 /* SwiftBlade */ = {
+		728DD22B2CD12E0800002E67 /* SwiftBlade */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 728DD2142CD1263200002E67 /* XCLocalSwiftPackageReference "../../SwiftBlade" */;
+			package = 728DD22A2CD12E0800002E67 /* XCRemoteSwiftPackageReference "SwiftBlade" */;
 			productName = SwiftBlade;
 		};
 /* End XCSwiftPackageProductDependency section */
